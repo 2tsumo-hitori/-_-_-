@@ -1,3 +1,6 @@
+# 원본 포스팅
+https://danawalab.github.io/elastic/2024/11/25/indexing.html
+
 # 다나와 검색의 동적 색인 최적화 사례
 
 안녕하세요, 커넥트웨이브 다나와 검색Backend팀 곽명환입니다.
