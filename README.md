@@ -234,8 +234,45 @@ ES의 CPU 상태에 따라 색인 속도를 동적으로 조절하는 로직을 
 1. **CPU 상태 모니터링**  
    - 스케줄러를 통해 **0.2초 간격**으로 ES 노드의 CPU 상태를 조회.
    - 모니터링 결과에 따라 색인 요청을 조절(배포 프로세스 없이 동적으로 조절 가능).
-   - `**스케줄러를 사용 한 이유는 색인 요청마다 ES의 CPU 상태를 조회해 부하를 늘리지 않기 위함도 있었지만, 색인 시에 blocking이 발생해 I/O로 인한 지연이 발생하지 않게 하기 위함**`
+   - <details>
+        <summary>스케줄러를 사용 한 이유</summary>
+  
+        1. 색인 요청마다 ES의 CPU 상태를 조회하는 것은 부하를 유발
+        2. **색인 시 Rest api 요청으로 인한 blokcing I/O 발생을 방지하기 위해**
+        
+       ```java
+        @Component
+        public class SearchEngineCpuStatusHolder {
+            private volatile boolean isCpuFullUsage = false;
+        
+            public boolean isCpuOverload() {
+                return isCpuFullUsage;
+            }
+            
+            public void setCpuFullUsage(boolean cpuFullUsage) {
+                isCpuFullUsage = cpuFullUsage;
+            }
+        }
+        .
+        .
+        .
 
+        @Value("${scheduler.fixedRate}")
+        private long schedulerFixedRate;
+
+
+        @Scheduled(fixedRate = schedulerFixedRate)
+        public void checkCpuStatus() {
+            boolean currentStatus = searchEngineHealthCheckService.isCpuFullUsage();
+            searchEngineCpuStatusHolder.setCpuFullUsage(currentStatus);
+    
+            if (currentStatus) {
+                logger.info("SearchEngine CPU Full Usage");
+            }
+        }
+       ```
+    
+    </details>
 2. **프록시 서버 추가**  
    - 각 색인 서버(12개)가 개별적으로 ES 상태를 조회하는 비효율을 줄이기 위해 **Express 프록시 서버**를 도입.
    - 색인 서버는 프록시 서버로 REST API 요청을 보내고, 프록시 서버는 스케쥴링으로 주기적으로 ES의 CPU 상태를 확인 후 상태 값을 반환.
